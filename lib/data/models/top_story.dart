@@ -14,6 +14,7 @@ class TopStory {
   final String kicker;
   final List<String> desFacet;
   final List<String> orgFacet;
+  final List<Map<String, dynamic>>? multimedia;
 
   TopStory({
     required this.section,
@@ -31,6 +32,7 @@ class TopStory {
     required this.kicker,
     required this.desFacet,
     required this.orgFacet,
+    this.multimedia,
   });
 
   factory TopStory.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,7 @@ class TopStory {
       kicker: json['kicker'] ?? '',
       desFacet: (json['des_facet'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       orgFacet: (json['org_facet'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+      multimedia: (json['multimedia'] as List<dynamic>?)?.map((e) => Map<String, dynamic>.from(e)).toList(),
     );
   }
 
@@ -70,6 +73,7 @@ class TopStory {
       'kicker': kicker,
       'des_facet': desFacet,
       'org_facet': orgFacet,
+      'multimedia': multimedia,
     };
   }
 }
