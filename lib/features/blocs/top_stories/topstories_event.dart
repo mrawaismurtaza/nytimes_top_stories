@@ -11,3 +11,11 @@ class SearchTopStories extends TopStoriesEvent {
 
   SearchTopStories(this.query);
 }
+
+class ToggleLayoutEvent extends TopStoriesEvent {}
+
+class RefreshTopStories extends TopStoriesEvent {
+  final String section;
+
+  RefreshTopStories(this.section);
+}

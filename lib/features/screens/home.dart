@@ -4,7 +4,10 @@ import 'package:nytimes_top_stories/data/models/top_story.dart';
 import 'package:nytimes_top_stories/features/blocs/top_stories/topstories_event.dart';
 import 'package:nytimes_top_stories/features/blocs/top_stories/topstories_sate.dart';
 import 'package:nytimes_top_stories/features/blocs/top_stories/tostories_bloc.dart';
-import 'package:nytimes_top_stories/features/screens/detail_view.dart';
+import 'package:nytimes_top_stories/features/shared_widgets/search_filter_bar.dart';
+import 'package:nytimes_top_stories/features/shared_widgets/master_detail_layout.dart';
+import 'package:nytimes_top_stories/features/shared_widgets/story_list_layouts.dart';
+import 'package:nytimes_top_stories/features/shared_widgets/state_widgets.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -17,6 +20,8 @@ class _HomeState extends State<Home> {
   String selectedSection = 'home';
   final List<String> sections = ['home', 'world', 'politics', 'business', 'technology', 'science', 'health', 'sports', 'entertainment'];
   late final TextEditingController _searchController;
+  TopStory? selectedStory;
+  String? selectedThumbnailUrl;
 
   @override
   void initState() {
@@ -37,38 +42,42 @@ class _HomeState extends State<Home> {
     super.dispose();
   }
 
+  void _onSectionChanged(String section) {
+    setState(() {
+      selectedSection = section;
+      selectedStory = null;
+      selectedThumbnailUrl = null;
+      _searchController.clear();
+    });
+    context.read<TopStoriesBloc>().add(FetchTopStories(selectedSection));
+  }
+
+  void _onStorySelected(TopStory story, String? thumbnailUrl) {
+    setState(() {
+      selectedStory = story;
+      selectedThumbnailUrl = thumbnailUrl;
+    });
+  }
+
+  String? _getThumbnailUrl(TopStory story) {
+    if (story.multimedia != null && story.multimedia!.isNotEmpty) {
+      final thumb = story.multimedia!.firstWhere(
+        (m) => m['format'] == 'Standard Thumbnail',
+        orElse: () {
+          story.multimedia!.sort((a, b) => (a['width'] ?? 9999).compareTo(b['width'] ?? 9999));
+          return story.multimedia!.first;
+        },
+      );
+      return thumb['url'] as String?;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
-    void _showSectionFilter() {
-      showModalBottomSheet(
-        context: context,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        builder: (context) {
-          return ListView(
-            shrinkWrap: true,
-            children: sections.map((section) {
-              return ListTile(
-                title: Text(section, style: TextStyle(fontWeight: selectedSection == section ? FontWeight.bold : FontWeight.normal)),
-                trailing: selectedSection == section ? Icon(Icons.check, color: colorScheme.primary) : null,
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    selectedSection = section;
-                    _searchController.clear();
-                  });
-                  context.read<TopStoriesBloc>().add(FetchTopStories(selectedSection));
-                },
-              );
-            }).toList(),
-          );
-        },
-      );
-    }
+    final isWideScreen = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
       backgroundColor: colorScheme.background,
@@ -76,225 +85,89 @@ class _HomeState extends State<Home> {
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
         centerTitle: true,
+        toolbarHeight: isWideScreen ? 48.0 : kToolbarHeight,
         title: Text(
           'Top Stories',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 24,
+            fontSize: isWideScreen ? 18 : 24,
             color: colorScheme.onPrimary,
           ),
         ),
         elevation: 0,
+        actions: [
+          BlocBuilder<TopStoriesBloc, TopStoriesState>(
+            builder: (context, state) {
+              // Only show layout toggle on small screens (mobile)
+              if (state is TopStoriesLoaded && !isWideScreen) {
+                return IconButton(
+                  icon: Icon(
+                    state.isGridLayout ? Icons.view_list : Icons.grid_view,
+                    color: colorScheme.onPrimary,
+                  ),
+                  onPressed: () {
+                    context.read<TopStoriesBloc>().add(ToggleLayoutEvent());
+                  },
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by title or author',
-                      prefixIcon: Icon(Icons.search, color: colorScheme.onBackground),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                TextButton.icon(
-                  onPressed: _showSectionFilter,
-                  icon: Icon(Icons.filter_alt, color: colorScheme.onBackground),
-                  label: const Text('Filter'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: colorScheme.onBackground,
-                  ),
-                ),
-              ],
-            ),
+          SearchAndFilterBar(
+            searchController: _searchController,
+            sections: sections,
+            selectedSection: selectedSection,
+            onSectionChanged: _onSectionChanged,
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: CustomScrollView(
-              slivers: [
-                BlocConsumer<TopStoriesBloc, TopStoriesState>(
-                  listener: (context, state) {},
-                  builder: (context, state) {
-                    if (state is TopStoriesLoading) {
-                      return SliverFillRemaining(
-                        child: Center(child: CircularProgressIndicator(color: colorScheme.primary)),
-                      );
-                    } else if (state is TopStoriesError) {
-                      return SliverFillRemaining(
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.error_outline, size: 64, color: colorScheme.onBackground.withOpacity(0.6)),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Error: ${state.message}',
-                                style: TextStyle(color: colorScheme.onBackground),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    } else if (state is TopStoriesLoaded) {
-                      final stories = state.stories as List<TopStory>;
-                      if (stories.isEmpty) {
-                        return SliverFillRemaining(
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.article_outlined, size: 64, color: colorScheme.onBackground.withOpacity(0.6)),
-                                const SizedBox(height: 16),
-                                Text('No stories found.', style: TextStyle(color: colorScheme.onBackground)),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
-                      return SliverPadding(
-                        padding: const EdgeInsets.all(20),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final story = stories[index];
-                              String? thumbnailUrl;
-                              if (story.multimedia != null && story.multimedia!.isNotEmpty) {
-                                final thumb = story.multimedia!.firstWhere(
-                                  (m) => m['format'] == 'Standard Thumbnail',
-                                  orElse: () {
-                                    story.multimedia!.sort((a, b) => (a['width'] ?? 9999).compareTo(b['width'] ?? 9999));
-                                    return story.multimedia!.first;
-                                  },
-                                );
-                                thumbnailUrl = thumb['url'] as String?;
-                              }
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => DetailView(story: story, thumbnailUrl: thumbnailUrl),
-                                      ),
-                                    );
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.surface,
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: theme.shadowColor,
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(12),
-                                            child: thumbnailUrl != null
-                                                ? Image.network(
-                                                    thumbnailUrl,
-                                                    width: 80,
-                                                    height: 80,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (context, error, stackTrace) => Container(
-                                                      width: 80,
-                                                      height: 80,
-                                                      color: colorScheme.onBackground.withOpacity(0.1),
-                                                      child: Icon(Icons.image, color: colorScheme.onBackground.withOpacity(0.4), size: 32),
-                                                    ),
-                                                  )
-                                                : Container(
-                                                    width: 80,
-                                                    height: 80,
-                                                    decoration: BoxDecoration(
-                                                      color: colorScheme.onBackground.withOpacity(0.1),
-                                                      borderRadius: BorderRadius.circular(12),
-                                                    ),
-                                                    child: Icon(Icons.image, color: colorScheme.onBackground.withOpacity(0.4), size: 32),
-                                                  ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  story.title,
-                                                  maxLines: 3,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    color: colorScheme.onSurface,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
-                                                    height: 1.3,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Row(
-                                                  children: [
-                                                    Container(
-                                                      width: 3,
-                                                      height: 12,
-                                                      decoration: BoxDecoration(
-                                                        color: colorScheme.onSurface,
-                                                        borderRadius: BorderRadius.circular(1.5),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Expanded(
-                                                      child: Text(
-                                                        story.byline,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
-                                                        style: TextStyle(
-                                                          color: colorScheme.onSurface.withOpacity(0.6),
-                                                          fontWeight: FontWeight.w500,
-                                                          fontSize: 13,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                            childCount: stories.length,
-                          ),
-                        ),
-                      );
+            child: BlocConsumer<TopStoriesBloc, TopStoriesState>(
+              listener: (context, state) {},
+              builder: (context, state) {
+                if (state is TopStoriesLoading) {
+                  return const LoadingStateWidget();
+                } else if (state is TopStoriesError) {
+                  return ErrorStateWidget(
+                    message: state.message,
+                    selectedSection: selectedSection,
+                  );
+                } else if (state is TopStoriesLoaded) {
+                  final stories = state.stories as List<TopStory>;
+                  if (stories.isEmpty) {
+                    return EmptyStateWidget(selectedSection: selectedSection);
+                  }
+                  
+                  if (isWideScreen) {
+                    // Auto-select first story if none selected
+                    if (selectedStory == null && stories.isNotEmpty) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        setState(() {
+                          selectedStory = stories.first;
+                          selectedThumbnailUrl = _getThumbnailUrl(stories.first);
+                        });
+                      });
                     }
-                    return SliverFillRemaining(
-                      child: Center(
-                        child: Text('Welcome to NYTimes Top Stories App!', style: TextStyle(color: colorScheme.onBackground)),
-                      ),
+                    return MasterDetailLayout(
+                      stories: stories,
+                      selectedStory: selectedStory,
+                      selectedThumbnailUrl: selectedThumbnailUrl,
+                      selectedSection: selectedSection,
+                      onStorySelected: _onStorySelected,
                     );
-                  },
-                ),
-              ],
+                  }
+                  
+                  return StoryListLayouts(
+                    stories: stories,
+                    isGridLayout: state.isGridLayout,
+                    selectedSection: selectedSection,
+                  );
+                }
+                return WelcomeStateWidget(selectedSection: selectedSection);
+              },
             ),
           ),
         ],
