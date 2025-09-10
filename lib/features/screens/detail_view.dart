@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nytimes_top_stories/data/models/top_story.dart';
-import 'package:nytimes_top_stories/features/screens/detail_view_new.dart';
+import 'package:nytimes_top_stories/features/shared_widgets/detailed_view_card.dart';
 
 class DetailView extends StatelessWidget {
   final TopStory story;

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -8,7 +10,6 @@ import 'package:nytimes_top_stories/features/blocs/top_stories/tostories_bloc.da
 import 'package:nytimes_top_stories/features/screens/home.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
-import 'dart:io';
 
 final getIt = GetIt.instance;
 

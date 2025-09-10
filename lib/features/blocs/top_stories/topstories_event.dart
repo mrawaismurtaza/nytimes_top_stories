@@ -5,3 +5,9 @@ class FetchTopStories extends TopStoriesEvent {
 
   FetchTopStories(this.section);
 }
+
+class SearchTopStories extends TopStoriesEvent {
+  final String query;
+
+  SearchTopStories(this.query);
+}
