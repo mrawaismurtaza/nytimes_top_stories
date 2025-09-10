@@ -6,10 +6,15 @@ import 'package:nytimes_top_stories/core/app_theme.dart';
 import 'package:nytimes_top_stories/data/repositories/top_stories_rep.dart';
 import 'package:nytimes_top_stories/features/blocs/top_stories/tostories_bloc.dart';
 import 'package:nytimes_top_stories/features/screens/home.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
+import 'dart:io';
 
 final getIt = GetIt.instance;
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isAndroid) WebViewPlatform.instance = AndroidWebViewPlatform();
   setUpDependencies();
   await dotenv.load(fileName: "assets/.env");
   runApp(const MyApp());

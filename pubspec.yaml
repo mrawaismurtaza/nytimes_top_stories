@@ -39,6 +39,8 @@ dependencies:
   get_it: ^8.2.0
   dio: ^5.9.0
   logger: ^2.6.1
+  webview_flutter: ^4.2.2
+  
 
 dev_dependencies:
   flutter_test:

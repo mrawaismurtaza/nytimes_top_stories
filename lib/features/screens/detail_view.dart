@@ -1,98 +1,135 @@
 import 'package:flutter/material.dart';
 import 'package:nytimes_top_stories/data/models/top_story.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:nytimes_top_stories/features/screens/detail_view_new.dart';
 
 class DetailView extends StatelessWidget {
   final TopStory story;
-  const DetailView({super.key, required this.story});
+  final String? thumbnailUrl;
+  const DetailView({super.key, required this.story, this.thumbnailUrl});
+
+  void _openWebView(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WebViewScreen(url: story.url),
+      ),
+    );
+  }
+
+  Widget _buildImage(String? thumbnailUrl, ColorScheme colorScheme) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: thumbnailUrl != null
+          ? Image.network(
+              thumbnailUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: colorScheme.onBackground.withOpacity(0.1),
+                child: Icon(Icons.image, color: colorScheme.onBackground.withOpacity(0.4), size: 64),
+              ),
+            )
+          : Container(
+              color: colorScheme.onBackground.withOpacity(0.1),
+              child: Icon(Icons.image, color: colorScheme.onBackground.withOpacity(0.4), size: 64),
+            ),
+    );
+  }
+
+  Widget _buildText(String text, TextStyle style, {EdgeInsets? padding}) {
+    return Padding(
+      padding: padding ?? const EdgeInsets.symmetric(vertical: 8),
+      child: Text(text, style: style),
+    );
+  }
+
+  Widget _buildBylineContainer(String byline, ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.onBackground.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        byline,
+        style: TextStyle(
+          color: colorScheme.onBackground.withOpacity(0.6),
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    String? largeImageUrl;
-    if (story.multimedia != null && story.multimedia!.isNotEmpty) {
-      // Try to get the largest image (by width)
-      final sorted = List<Map<String, dynamic>>.from(story.multimedia!);
-      sorted.sort((a, b) => (b['width'] ?? 0).compareTo(a['width'] ?? 0));
-      largeImageUrl = sorted.first['url'] as String?;
-    }
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Story Details'),
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
+        centerTitle: true,
+        title: Text(
+          'Story Details',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: colorScheme.onPrimary,
+          ),
+        ),
       ),
+      backgroundColor: colorScheme.background,
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         children: [
-          if (largeImageUrl != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                largeImageUrl,
-                height: 220,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 220,
-                  color: Colors.black12,
-                  child: const Icon(Icons.image, color: Colors.black38, size: 48),
-                ),
-              ),
-            ),
+          _buildImage(thumbnailUrl, colorScheme),
           const SizedBox(height: 24),
-          Text(
+          _buildText(
             story.title,
-            style: const TextStyle(
-              color: Colors.black,
+            TextStyle(
+              color: colorScheme.onBackground,
               fontWeight: FontWeight.bold,
-              fontSize: 22,
+              fontSize: 28,
+              height: 1.2,
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 24),
+          _buildText(
             story.abstractText,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontSize: 16,
+            TextStyle(
+              color: colorScheme.onBackground.withOpacity(0.8),
+              fontSize: 18,
+              height: 1.6,
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            story.byline,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                    appBar: AppBar(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      title: const Text('See More'),
-                    ),
-                    body: WebView(
-                      initialUrl: story.url,
-                    ),
-                  ),
-                ),
-              );
-            },
-            child: const Text('See more'),
-          ),
+          const SizedBox(height: 20),
+          _buildBylineContainer(story.byline, colorScheme),
+          const SizedBox(height: 40),
         ],
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: theme.shadowColor,
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: colorScheme.primary,
+            foregroundColor: colorScheme.onPrimary,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 0,
+          ),
+          onPressed: () => _openWebView(context),
+          child: Text('See More', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colorScheme.onPrimary)),
+        ),
       ),
     );
   }
